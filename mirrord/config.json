@@ -1,0 +1,30 @@
+{
+  "target": {
+    "namespace": "llm",
+    "path": {
+      "deployment": "ollama"
+    }
+  },
+  "feature": {
+    "network": {
+      "incoming": "off",
+      "outgoing": {
+        "tcp": true,
+        "udp": true,
+        "filter": {
+          "local": [
+            "tcp://127.0.0.1:*",
+            "tcp://localhost:*"
+          ]
+        }
+      },
+      "dns": true
+    },
+    "fs": "local",
+    "env": {
+      "include": "OLLAMA_*",
+      "exclude": "HOME;USER;PATH"
+    }
+  },
+  "operator": false
+}
