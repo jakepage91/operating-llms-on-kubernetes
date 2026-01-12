@@ -18,9 +18,34 @@ if ! docker ps &> /dev/null; then
     exit 1
 fi
 
-# Default resource allocations for 16GB machine
+# Check Docker Desktop memory allocation
+DOCKER_MEMORY=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
+DOCKER_MEMORY_MB=$((DOCKER_MEMORY / 1024 / 1024))
+
+if [ "${DOCKER_MEMORY_MB}" -gt 0 ] && [ "${DOCKER_MEMORY_MB}" -lt "${MEMORY}" ]; then
+    echo "⚠️  Warning: Docker Desktop has only ${DOCKER_MEMORY_MB}MB available"
+    echo "   Requested: ${MEMORY}MB"
+    echo ""
+    echo "   To increase Docker Desktop memory:"
+    echo "   1. Open Docker Desktop"
+    echo "   2. Settings → Resources → Memory"
+    echo "   3. Set to at least 8GB (recommended for LLM workloads)"
+    echo "   4. Apply & Restart"
+    echo ""
+    read -p "Continue with ${DOCKER_MEMORY_MB}MB? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+    # Adjust memory to fit within Docker's limits (leave 500MB headroom)
+    MEMORY=$((DOCKER_MEMORY_MB - 500))
+    echo "📊 Adjusting minikube memory to ${MEMORY}MB"
+fi
+
+# Default resource allocations
+# Conservative settings that work with Docker Desktop's default limits
 CPUS="${MINIKUBE_CPUS:-4}"
-MEMORY="${MINIKUBE_MEMORY:-8192}"  # 8GB
+MEMORY="${MINIKUBE_MEMORY:-7168}"  # 7GB (leaves headroom for Docker Desktop)
 DISK="${MINIKUBE_DISK:-20g}"
 
 echo "📊 Resource allocation:"

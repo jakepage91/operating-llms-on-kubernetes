@@ -30,13 +30,33 @@ open http://localhost:8080
 ## Prerequisites
 
 - **Docker Desktop** installed and running
+  - **Memory configured to 8GB minimum** (10GB recommended)
+  - Settings → Resources → Memory → 8GB → Apply & Restart
 - **Minikube** installed: `brew install minikube`
 - **kubectl** installed: `brew install kubectl`
-- **16GB RAM machine** (allocates 8GB to minikube, leaves 8GB for host)
+- **16GB RAM machine** recommended (but can work with 8GB if careful)
 
 ---
 
 ## Step-by-Step Setup
+
+### 0. Configure Docker Desktop Memory (Important!)
+
+Before starting minikube, ensure Docker Desktop has enough memory allocated:
+
+1. **Open Docker Desktop**
+2. **Go to Settings** (gear icon) → **Resources** → **Memory**
+3. **Set Memory to at least 8GB** (10GB recommended)
+4. **Click "Apply & Restart"**
+5. **Wait for Docker to restart**
+
+**Why?** Minikube runs inside Docker Desktop's VM, so it's limited by Docker's memory allocation. By default, Docker Desktop only allocates ~4-6GB, which isn't enough for running LLMs.
+
+**Verify Docker has enough memory:**
+```bash
+docker info | grep -i memory
+# Should show at least 8GB
+```
 
 ### 1. Start Minikube
 
@@ -51,7 +71,7 @@ This will:
 
 **Manual alternative:**
 ```bash
-minikube start --cpus=4 --memory=8192 --disk-size=20g
+minikube start --cpus=4 --memory=7168 --disk-size=20g
 minikube addons enable metrics-server
 ```
 
@@ -195,10 +215,14 @@ kubectl describe pod -n llm <pod-name>
    kubectl scale deployment -n llm open-webui --replicas=0
    ```
 
-4. **Allocate more RAM to minikube:**
+4. **Allocate more RAM to Docker Desktop & minikube:**
    ```bash
+   # First: Increase Docker Desktop memory to 10-12GB
+   # Settings → Resources → Memory → Apply & Restart
+
+   # Then recreate minikube with more memory
    minikube delete
-   minikube start --cpus=4 --memory=10240  # 10GB instead of 8GB
+   minikube start --cpus=4 --memory=9216  # 9GB (if Docker has 10GB+)
    ```
 
 ---
@@ -267,6 +291,24 @@ If you want to share this model with other clusters:
 
 ## Troubleshooting
 
+### "Docker Desktop has only XXXXMB memory" Error
+
+This means Docker Desktop doesn't have enough memory allocated.
+
+**Fix:**
+1. Open Docker Desktop
+2. Settings → Resources → Memory
+3. Increase to **8GB minimum** (10GB recommended)
+4. Click "Apply & Restart"
+5. Wait for Docker to fully restart
+6. Try `./scripts/setup-minikube.sh` again
+
+**Verify it worked:**
+```bash
+docker info | grep -i memory
+# Should show >= 8GB total
+```
+
 ### Minikube Won't Start
 
 ```bash
@@ -275,7 +317,7 @@ docker ps
 
 # Delete and recreate
 minikube delete
-minikube start --cpus=4 --memory=8192 --disk-size=20g
+minikube start --cpus=4 --memory=7168 --disk-size=20g
 ```
 
 ### Pods Stuck in Pending

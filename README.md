@@ -106,14 +106,21 @@ Deploy the complete stack to your Kubernetes cluster.
 - Docker (for building images)
 - Kubernetes cluster with sufficient resources (4GB+ RAM recommended)
 
-#### Using Minikube (Local Testing on 16GB Machine)
+#### Using Minikube (Local Testing)
 
-If you're testing locally with minikube on a 16GB RAM machine:
+If you're testing locally with minikube:
+
+**First, configure Docker Desktop memory:**
+1. Open Docker Desktop → Settings → Resources
+2. Set Memory to **8GB minimum** (10GB recommended for comfortable LLM operations)
+3. Apply & Restart
+
+Then start minikube:
 
 ```bash
 # Start minikube with appropriate resources
-# Allocate 8GB RAM to minikube (leaves 8GB for host OS)
-minikube start --cpus=4 --memory=8192 --disk-size=20g
+# Allocate 7GB RAM to minikube (safe default, leaves headroom)
+minikube start --cpus=4 --memory=7168 --disk-size=20g
 
 # Enable metrics-server (optional, for resource monitoring)
 minikube addons enable metrics-server
