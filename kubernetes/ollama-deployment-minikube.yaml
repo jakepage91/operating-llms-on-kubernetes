@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: llm
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+          name: http
+          protocol: TCP
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        resources:
+          requests:
+            memory: "1Gi"  # Reduced for local testing
+            cpu: "500m"
+          limits:
+            memory: "4Gi"  # Reduced from 8Gi for 16GB machine
+            cpu: "2000m"   # Reduced from 4000m
+            # GPU not available in minikube by default
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 11434
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 11434
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: ollama-data
+        emptyDir: {}
+        # Note: For persistent models across minikube restarts, use:
+        # hostPath:
+        #   path: /data/ollama
+        #   type: DirectoryOrCreate

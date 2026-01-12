@@ -106,6 +106,74 @@ Deploy the complete stack to your Kubernetes cluster.
 - Docker (for building images)
 - Kubernetes cluster with sufficient resources (4GB+ RAM recommended)
 
+#### Using Minikube (Local Testing on 16GB Machine)
+
+If you're testing locally with minikube on a 16GB RAM machine:
+
+```bash
+# Start minikube with appropriate resources
+# Allocate 8GB RAM to minikube (leaves 8GB for host OS)
+minikube start --cpus=4 --memory=8192 --disk-size=20g
+
+# Enable metrics-server (optional, for resource monitoring)
+minikube addons enable metrics-server
+
+# Verify minikube is running
+kubectl get nodes
+```
+
+**Important for local development:**
+
+1. **Use minikube's Docker daemon** (avoids pushing to external registry):
+   ```bash
+   # Point your shell to minikube's Docker daemon
+   eval $(minikube docker-env)
+
+   # Now build images - they'll be available in minikube
+   cd restaurant-app/backend
+   docker build -t restaurant-app:latest .
+   ```
+
+2. **Update image pull policy** in `kubernetes/restaurant-app-deployment.yaml`:
+   ```yaml
+   spec:
+     containers:
+     - name: restaurant-app
+       image: restaurant-app:latest
+       imagePullPolicy: Never  # Don't try to pull from registry
+   ```
+
+3. **Access services** via minikube:
+   ```bash
+   # Option 1: Port-forward (recommended)
+   kubectl port-forward -n llm svc/open-webui 8080:8080
+   kubectl port-forward -n llm svc/restaurant-app 3001:3001
+
+   # Option 2: Minikube service (opens browser)
+   minikube service open-webui -n llm
+
+   # Option 3: Get minikube IP and use NodePort
+   minikube ip
+   # Then change services to type: NodePort
+   ```
+
+4. **Resource considerations for 16GB machine:**
+   - Ollama will use 2-4GB RAM (adjust in `kubernetes/ollama-deployment.yaml` if needed)
+   - Keep model sizes small (use llama3.2 3B instead of larger models)
+   - Consider reducing replicas to 1 for all services
+
+**Stopping minikube:**
+```bash
+# Pause (preserves state)
+minikube pause
+
+# Stop (shuts down but preserves config)
+minikube stop
+
+# Delete (removes everything)
+minikube delete
+```
+
 #### Step 1.1: Deploy Ollama Runtime
 
 ```bash
