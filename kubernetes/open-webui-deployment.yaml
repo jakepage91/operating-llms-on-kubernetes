@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: llm
+  labels:
+    app: open-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+    spec:
+      containers:
+      - name: open-webui
+        image: ghcr.io/open-webui/open-webui:main
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: OLLAMA_BASE_URL
+          value: "http://ollama:11434"
+        - name: WEBUI_AUTH
+          value: "False"  # Disable auth for demo purposes
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: webui-data
+          mountPath: /app/backend/data
+      volumes:
+      - name: webui-data
+        emptyDir: {}
+        # For persistent storage, use PVC:
+        # persistentVolumeClaim:
+        #   claimName: open-webui-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui
+  namespace: llm
+  labels:
+    app: open-webui
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: open-webui
