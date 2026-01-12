@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🔨 Building restaurant app for minikube..."
+echo "🔨 Building restaurant app (backend + frontend) for minikube..."
 
 # Check if minikube is running
 if ! minikube status &> /dev/null; then
@@ -16,23 +16,37 @@ if ! docker info | grep -q "minikube"; then
     eval $(minikube docker-env)
 fi
 
-# Build the image
-echo "📦 Building restaurant-app:latest..."
+# Build backend image
+echo "📦 Building restaurant-app-backend:latest..."
 cd restaurant-app/backend
-docker build -t restaurant-app:latest .
+docker build -t restaurant-app-backend:latest .
 cd ../..
+echo "✅ Backend image built"
 
-echo "✅ Image built successfully!"
+# Build frontend image
+echo "📦 Building restaurant-app-frontend:latest..."
+cd restaurant-app/frontend
+docker build -t restaurant-app-frontend:latest .
+cd ../..
+echo "✅ Frontend image built"
+
 echo ""
-echo "🔍 Verify the image:"
+echo "✅ All images built successfully!"
+echo ""
+echo "🔍 Verify the images:"
 docker images | grep restaurant-app
 echo ""
 echo "Next steps:"
-echo "1. Update kubernetes/restaurant-app-deployment.yaml:"
-echo "   Set imagePullPolicy: Never"
+echo "1. Deploy:"
+echo "   kubectl apply -f kubernetes/restaurant-app-backend-minikube.yaml"
+echo "   kubectl apply -f kubernetes/restaurant-app-frontend-minikube.yaml"
 echo ""
-echo "2. Deploy:"
-echo "   kubectl apply -f kubernetes/restaurant-app-deployment.yaml"
+echo "   Or use the deploy script:"
+echo "   ./scripts/deploy-minikube.sh"
 echo ""
-echo "3. Check status:"
+echo "2. Check status:"
 echo "   kubectl get pods -n llm"
+echo ""
+echo "3. Access the app:"
+echo "   kubectl port-forward -n llm svc/restaurant-app-frontend 8080:80"
+echo "   open http://localhost:8080"

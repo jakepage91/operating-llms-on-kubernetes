@@ -108,77 +108,98 @@ Deploy the complete stack to your Kubernetes cluster.
 
 #### Using Minikube (Local Testing)
 
-If you're testing locally with minikube:
+If you're testing locally with minikube, **use the dedicated scripts** for a streamlined experience:
 
-**First, configure Docker Desktop memory:**
-1. Open Docker Desktop → Settings → Resources
-2. Set Memory to **8GB minimum** (10GB recommended for comfortable LLM operations)
-3. Apply & Restart
-
-Then start minikube:
+**Complete Minikube Setup (Recommended):**
 
 ```bash
-# Start minikube with appropriate resources
-# Allocate 7GB RAM to minikube (safe default, leaves headroom)
-minikube start --cpus=4 --memory=7168 --disk-size=20g
+# Step 1: Configure Docker Desktop memory (one-time setup)
+# Open Docker Desktop → Settings → Resources → Memory → 8GB+ → Apply & Restart
 
-# Enable metrics-server (optional, for resource monitoring)
-minikube addons enable metrics-server
+# Step 2: Setup minikube
+./scripts/setup-minikube.sh
 
-# Verify minikube is running
-kubectl get nodes
+# Step 3: Point Docker to minikube's daemon
+eval $(minikube docker-env)
+
+# Step 4: Build restaurant app image
+./scripts/build-for-minikube.sh
+
+# Step 5: Deploy everything to minikube
+./scripts/deploy-minikube.sh
+
+# Step 6: Pull a model
+kubectl exec -n llm deployment/ollama -- ollama pull llama3.2
+
+# Step 7: Access services
+kubectl port-forward -n llm svc/open-webui 8080:8080 &
+open http://localhost:8080
 ```
 
-**Important for local development:**
+**Manual Setup (if you prefer):**
 
-1. **Use minikube's Docker daemon** (avoids pushing to external registry):
+<details>
+<summary>Click to expand manual steps</summary>
+
+1. **Configure Docker Desktop memory:**
+   - Open Docker Desktop → Settings → Resources
+   - Set Memory to **8GB minimum** (10GB recommended)
+   - Apply & Restart
+
+2. **Start minikube:**
    ```bash
-   # Point your shell to minikube's Docker daemon
-   eval $(minikube docker-env)
+   minikube start --cpus=4 --memory=7168 --disk-size=20g
+   minikube addons enable metrics-server
+   ```
 
-   # Now build images - they'll be available in minikube
+3. **Build restaurant app image:**
+   ```bash
+   eval $(minikube docker-env)
    cd restaurant-app/backend
    docker build -t restaurant-app:latest .
+   cd ../..
    ```
 
-2. **Update image pull policy** in `kubernetes/restaurant-app-deployment.yaml`:
-   ```yaml
-   spec:
-     containers:
-     - name: restaurant-app
-       image: restaurant-app:latest
-       imagePullPolicy: Never  # Don't try to pull from registry
-   ```
-
-3. **Access services** via minikube:
+4. **Deploy all services:**
    ```bash
-   # Option 1: Port-forward (recommended)
-   kubectl port-forward -n llm svc/open-webui 8080:8080
-   kubectl port-forward -n llm svc/restaurant-app 3001:3001
+   # Deploy namespace
+   kubectl apply -f kubernetes/namespace.yaml
 
-   # Option 2: Minikube service (opens browser)
-   minikube service open-webui -n llm
+   # Deploy Ollama (minikube version with reduced resources)
+   kubectl apply -f kubernetes/ollama-deployment-minikube.yaml
+   kubectl apply -f kubernetes/ollama-service.yaml
 
-   # Option 3: Get minikube IP and use NodePort
-   minikube ip
-   # Then change services to type: NodePort
+   # Deploy Open WebUI
+   kubectl apply -f kubernetes/open-webui-deployment.yaml
+
+   # Deploy restaurant app (uses local image)
+   kubectl apply -f kubernetes/restaurant-app-deployment-minikube.yaml
+
+   # Wait for pods to be ready
+   kubectl wait --for=condition=ready pod -l app=ollama -n llm --timeout=300s
    ```
 
-4. **Resource considerations for 16GB machine:**
-   - Ollama will use 2-4GB RAM (adjust in `kubernetes/ollama-deployment.yaml` if needed)
-   - Keep model sizes small (use llama3.2 3B instead of larger models)
-   - Consider reducing replicas to 1 for all services
+5. **Access services:**
+   ```bash
+   # Port-forward Open WebUI
+   kubectl port-forward -n llm svc/open-webui 8080:8080
+
+   # Port-forward restaurant app
+   kubectl port-forward -n llm svc/restaurant-app 3001:3001
+   ```
+
+</details>
+
+**Important Notes:**
+- Use `kubernetes/*-minikube.yaml` manifests (they have `imagePullPolicy: Never` and reduced resources)
+- Use small models: `llama3.2` (3B) or `phi3` (recommended for local testing)
+- See [MINIKUBE.md](MINIKUBE.md) for detailed troubleshooting and daily usage
 
 **Stopping minikube:**
 ```bash
-# Pause (preserves state)
-minikube pause
-
-# Stop (shuts down but preserves config)
-minikube stop
-
-# Delete (removes everything)
-minikube delete
+minikube pause   # Quick pause (saves battery)
+minikube stop    # Full stop (preserves everything)
+minikube delete  # Complete removal
 ```
 
 #### Step 1.1: Deploy Ollama Runtime
@@ -585,24 +606,54 @@ mirrord exec --config mirrord/config.json -vvv -- npm run dev
 
 ## Quick Start (TL;DR)
 
+### For Minikube (Local Testing)
+
 ```bash
-# 1. Deploy everything to Kubernetes
-./scripts/deploy-all.sh
+# 1. Configure Docker Desktop: Settings → Resources → Memory → 8GB+ → Apply & Restart
+
+# 2. Setup and deploy
+./scripts/setup-minikube.sh
+eval $(minikube docker-env)
+./scripts/build-for-minikube.sh
+./scripts/deploy-minikube.sh
+
+# 3. Pull a model
 kubectl exec -n llm deployment/ollama -- ollama pull llama3.2
 
-# 2. Build and deploy restaurant app
-./scripts/build-restaurant-app.sh
-kubectl apply -f kubernetes/restaurant-app-deployment.yaml
-
-# 3. Access Open WebUI to test parameters
-kubectl port-forward -n llm svc/open-webui 8080:8080
+# 4. Access Open WebUI to test parameters
+kubectl port-forward -n llm svc/open-webui 8080:8080 &
 open http://localhost:8080
 
-# 4. Create Modelfile with your chosen parameters
+# 5. Create Modelfile with your chosen parameters
+POD_NAME=$(kubectl get pod -n llm -l app=ollama -o jsonpath='{.items[0].metadata.name}')
 kubectl cp kubernetes/modelfiles/restaurant-chef-v1.modelfile llm/${POD_NAME}:/tmp/restaurant-chef.modelfile
 kubectl exec -n llm deployment/ollama -- ollama create restaurant-chef -f /tmp/restaurant-chef.modelfile
 
-# 5. Push to Cloudsmith
+# Done!
+```
+
+See [QUICKSTART-MINIKUBE.md](QUICKSTART-MINIKUBE.md) for detailed setup.
+
+### For Production Cluster
+
+```bash
+# 1. Deploy everything
+./scripts/deploy-all.sh
+kubectl exec -n llm deployment/ollama -- ollama pull llama3.2
+
+# 2. Build and push restaurant app to registry
+export REGISTRY=your-registry.com/your-org
+./scripts/build-restaurant-app.sh
+kubectl apply -f kubernetes/restaurant-app-deployment.yaml
+
+# 3. Access Open WebUI
+kubectl port-forward -n llm svc/open-webui 8080:8080
+open http://localhost:8080
+
+# 4. Create and push Modelfile
+POD_NAME=$(kubectl get pod -n llm -l app=ollama -o jsonpath='{.items[0].metadata.name}')
+kubectl cp kubernetes/modelfiles/restaurant-chef-v1.modelfile llm/${POD_NAME}:/tmp/restaurant-chef.modelfile
+kubectl exec -n llm deployment/ollama -- ollama create restaurant-chef -f /tmp/restaurant-chef.modelfile
 ./scripts/push-modelfile-to-cloudsmith.sh restaurant-chef v1.0.0
 
 # Done!

@@ -35,18 +35,35 @@ kubectl apply -f kubernetes/example-modelfile.yaml
 echo "📦 Deploying Open WebUI..."
 kubectl apply -f kubernetes/open-webui-deployment.yaml
 
-# 4. Deploy Restaurant App (if image exists)
-echo "📦 Checking for restaurant-app image..."
-if eval $(minikube docker-env) && docker images | grep -q "restaurant-app.*latest"; then
-    echo "✅ restaurant-app:latest found, deploying..."
-    kubectl apply -f kubernetes/restaurant-app-deployment-minikube.yaml
+# 4. Deploy Restaurant App (if images exist)
+echo "📦 Checking for restaurant-app images..."
+
+BACKEND_EXISTS=false
+FRONTEND_EXISTS=false
+
+if eval $(minikube docker-env) && docker images | grep -q "restaurant-app-backend.*latest"; then
+    echo "✅ restaurant-app-backend:latest found"
+    BACKEND_EXISTS=true
 else
-    echo "⚠️  restaurant-app:latest not found in minikube's Docker."
-    echo "   Build it first with:"
-    echo "   eval \$(minikube docker-env)"
-    echo "   cd restaurant-app/backend && docker build -t restaurant-app:latest ."
-    echo ""
-    echo "   Or use the helper script:"
+    echo "⚠️  restaurant-app-backend:latest not found"
+fi
+
+if eval $(minikube docker-env) && docker images | grep -q "restaurant-app-frontend.*latest"; then
+    echo "✅ restaurant-app-frontend:latest found"
+    FRONTEND_EXISTS=true
+else
+    echo "⚠️  restaurant-app-frontend:latest not found"
+fi
+
+if [ "$BACKEND_EXISTS" = true ] && [ "$FRONTEND_EXISTS" = true ]; then
+    echo "📦 Deploying restaurant app backend and frontend..."
+    kubectl apply -f kubernetes/restaurant-app-backend-minikube.yaml
+    kubectl apply -f kubernetes/restaurant-app-frontend-minikube.yaml
+elif [ "$BACKEND_EXISTS" = true ]; then
+    echo "📦 Deploying restaurant app backend only..."
+    kubectl apply -f kubernetes/restaurant-app-backend-minikube.yaml
+else
+    echo "⚠️  Restaurant app images not found. Build them first:"
     echo "   ./scripts/build-for-minikube.sh"
     echo ""
     echo "   Skipping restaurant-app deployment for now..."
@@ -87,11 +104,18 @@ echo "  Port-forward: kubectl port-forward -n llm svc/open-webui 8080:8080"
 echo "  Then visit:   http://localhost:8080"
 echo ""
 
-if kubectl get svc -n llm restaurant-app &> /dev/null; then
-    echo "Restaurant App:"
-    echo "  NodePort:     http://${MINIKUBE_IP}:30001"
-    echo "  Port-forward: kubectl port-forward -n llm svc/restaurant-app 3001:3001"
-    echo "  Then visit:   http://localhost:3001/health"
+if kubectl get svc -n llm restaurant-app-frontend &> /dev/null; then
+    echo "Restaurant App (Frontend):"
+    echo "  NodePort:     http://${MINIKUBE_IP}:30080"
+    echo "  Port-forward: kubectl port-forward -n llm svc/restaurant-app-frontend 8080:80"
+    echo "  Then visit:   http://localhost:8080"
+    echo ""
+fi
+
+if kubectl get svc -n llm restaurant-app-backend &> /dev/null; then
+    echo "Restaurant App (Backend API):"
+    echo "  Port-forward: kubectl port-forward -n llm svc/restaurant-app-backend 3001:3001"
+    echo "  Then test:    curl http://localhost:3001/health"
     echo ""
 fi
 
