@@ -33,16 +33,16 @@ A production-ready security gateway for Large Language Model requests that sits 
 
 ## Two Development Workflows
 
-### Workflow 1: Production Deployment (Cloudsmith) ⭐ Recommended
+### Workflow 1: Production Deployment (Cloudsmith) Recommended
 
 **Use case:** Blog post demo, sharing with others, production deployments
 
 **Benefits:**
-- ✅ Versioned, reproducible deployments
-- ✅ Easy to share and collaborate
-- ✅ Fast local iteration with mirrord
-- ✅ Cluster runs stable version while you experiment
-- ✅ Can roll back to previous versions
+-  Versioned, reproducible deployments
+-  Easy to share and collaborate
+-  Fast local iteration with mirrord
+-  Cluster runs stable version while you experiment
+-  Can roll back to previous versions
 
 **Process:**
 
@@ -71,9 +71,9 @@ kubectl rollout restart deployment/llm-gateway -n llm-gateway
 **Use case:** Pure local development, no registry access
 
 **Limitations:**
-- ❌ Images only available on your machine
-- ❌ No versioning
-- ❌ Can't share with others
+-  Images only available on your machine
+-  No versioning
+-  Can't share with others
 
 **Process:**
 

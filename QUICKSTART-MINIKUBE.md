@@ -13,12 +13,12 @@ docker info | grep -i memory
 
 For limited memory, we'll deploy **only what's needed** for the blog post demo:
 
-✅ **Deploy:**
+**Deploy:**
 - Ollama (with small model)
 - Open WebUI
 - LLM Gateway (1 replica instead of 2)
 
-❌ **Skip:**
+**Skip:**
 - Heavy models (mistral, codellama)
 - Multiple gateway replicas
 - Persistent storage (use emptyDir)
@@ -112,10 +112,10 @@ kubectl exec -n llm deployment/ollama -- ollama list
 ```
 
 **Model size comparison:**
-- `llama3.2:1b` - **1.3GB** ✅ Best for limited memory
+- `llama3.2:1b` - **1.3GB**  Best for limited memory
 - `llama3.2` (3b) - 2GB (works but tight)
 - `phi3` - 2.3GB (alternative)
-- `mistral` - 4.1GB ❌ Too large
+- `mistral` - 4.1GB  Too large
 
 ## Step 4: Deploy Open WebUI
 
