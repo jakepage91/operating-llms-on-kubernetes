@@ -3,26 +3,51 @@ set -e
 
 # Deploy LLM Gateway to Kubernetes
 # This script follows the blog post walkthrough
+#
+# Usage:
+#   ./deploy-step3-gateway.sh          # Deploy with current deployment.yaml config
+#   ./deploy-step3-gateway.sh --build  # Force local build even if using Cloudsmith
+
+FORCE_BUILD=false
+if [[ "$1" == "--build" ]]; then
+    FORCE_BUILD=true
+fi
 
 echo "🚀 Deploying LLM Gateway..."
 
 # Create namespace if it doesn't exist
 kubectl create namespace llm-gateway --dry-run=client -o yaml | kubectl apply -f -
 
-# Build the gateway container image
-echo "🔨 Building LLM Gateway container..."
-cd llm-gateway
-docker build -t llm-gateway:latest .
-cd ..
+# Check if deployment uses Cloudsmith image
+DEPLOYMENT_IMAGE=$(grep -A 5 "containers:" llm-gateway/k8s/deployment.yaml | grep "image:" | awk '{print $2}')
 
-# For minikube, load the image
-if kubectl config current-context | grep -q "minikube"; then
-  echo "📦 Loading image into minikube..."
-  minikube image load llm-gateway:latest
+if [[ "$DEPLOYMENT_IMAGE" =~ "cloudsmith.io" ]] && [[ "$FORCE_BUILD" == false ]]; then
+    echo "📦 Using image from Cloudsmith: $DEPLOYMENT_IMAGE"
+    echo ""
+    echo "To use a different version:"
+    echo "  ./scripts/update-gateway-image.sh <version>"
+    echo ""
+    echo "To build locally instead:"
+    echo "  ./scripts/deploy-step3-gateway.sh --build"
+    echo ""
+else
+    # Build the gateway container image locally
+    echo "🔨 Building LLM Gateway container locally..."
+    cd llm-gateway
+    docker build -t llm-gateway:latest .
+    cd ..
+
+    # For minikube, load the image
+    if kubectl config current-context | grep -q "minikube"; then
+        echo "📦 Loading image into minikube..."
+        minikube image load llm-gateway:latest
+    fi
+    echo "✅ Local image built successfully"
+    echo ""
 fi
 
 # Deploy the gateway
-echo "📦 Deploying LLM Gateway..."
+echo "📦 Deploying LLM Gateway to cluster..."
 kubectl apply -f llm-gateway/k8s/namespace.yaml
 kubectl apply -f llm-gateway/k8s/configmap.yaml
 kubectl apply -f llm-gateway/k8s/secret.yaml
