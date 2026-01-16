@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-gateway
+  namespace: llm-gateway
+  labels:
+    app: llm-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llm-gateway
+  template:
+    metadata:
+      labels:
+        app: llm-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: llm-gateway
+        image: llm-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        # Load from ConfigMap
+        - name: OLLAMA_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: OLLAMA_BASE_URL
+        - name: REQUEST_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: REQUEST_TIMEOUT_SECONDS
+        - name: MAX_RETRIES
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: MAX_RETRIES
+        - name: ALLOWED_MODELS
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: ALLOWED_MODELS
+        - name: DEFAULT_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: DEFAULT_MODEL
+        - name: ENFORCEMENT_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: ENFORCEMENT_MODE
+        - name: ALLOWED_TOOLS
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: ALLOWED_TOOLS
+        - name: HIGH_RISK_TOOLS
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: HIGH_RISK_TOOLS
+        - name: REQUIRE_API_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: REQUIRE_API_KEY
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: LOG_LEVEL
+        - name: LOG_RAW_PROMPTS
+          valueFrom:
+            configMapKeyRef:
+              name: llm-gateway-config
+              key: LOG_RAW_PROMPTS
+        # Load from Secret
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llm-gateway-secret
+              key: API_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      restartPolicy: Always

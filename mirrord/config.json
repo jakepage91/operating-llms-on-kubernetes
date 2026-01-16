@@ -1,13 +1,13 @@
 {
   "target": {
-    "namespace": "llm",
+    "namespace": "llm-gateway",
     "path": {
-      "deployment": "ollama"
+      "deployment": "llm-gateway"
     }
   },
   "feature": {
     "network": {
-      "incoming": "off",
+      "incoming": "mirror",
       "outgoing": {
         "tcp": true,
         "udp": true,
@@ -22,7 +22,7 @@
     },
     "fs": "local",
     "env": {
-      "include": "OLLAMA_*",
+      "include": "OLLAMA_*;LLM_GATEWAY_*",
       "exclude": "HOME;USER;PATH"
     }
   },

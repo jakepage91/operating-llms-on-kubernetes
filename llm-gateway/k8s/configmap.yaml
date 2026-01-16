@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-gateway-config
+  namespace: llm-gateway
+data:
+  # Ollama backend configuration
+  OLLAMA_BASE_URL: "http://ollama.llm.svc.cluster.local:11434"
+  REQUEST_TIMEOUT_SECONDS: "30"
+  MAX_RETRIES: "2"
+
+  # Model configuration
+  ALLOWED_MODELS: "llama2,mistral,codellama"
+  DEFAULT_MODEL: "llama2"
+
+  # Policy enforcement
+  ENFORCEMENT_MODE: "monitor"  # monitor, soft, or hard
+  ALLOWED_TOOLS: "web_search,calculator,weather"
+  HIGH_RISK_TOOLS: "execute_code,file_delete,system_command"
+
+  # Security
+  REQUIRE_API_KEY: "false"
+
+  # Logging
+  LOG_LEVEL: "INFO"
+  LOG_RAW_PROMPTS: "false"
+
+  # Server
+  HOST: "0.0.0.0"
+  PORT: "8000"

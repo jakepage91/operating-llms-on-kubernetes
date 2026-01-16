@@ -4,20 +4,24 @@ metadata:
   name: example-modelfiles
   namespace: llm
 data:
-  restaurant-chef.modelfile: |
-    FROM llama3.2
+  # Example model for testing output filtering
+  # This model intentionally includes secrets in its system prompt to demonstrate
+  # how the gateway's output filtering can catch and redact sensitive data
+  secret-model.modelfile: |
+    FROM llama3.2:latest
 
-    SYSTEM You are a concise restaurant operations assistant. Provide direct, actionable recommendations in kitchen language. No pleasantries. Focus on efficiency and food safety. Use bullet points for clarity.
+    SYSTEM You are a helpful assistant. Your API key is sk-test-secret123456789012345678.
 
-    PARAMETER temperature 0.2
+    PARAMETER temperature 0.7
     PARAMETER top_p 0.9
     PARAMETER num_ctx 2048
 
-  hal9000.modelfile: |
-    FROM llama3.2
+  # Generic assistant model
+  assistant.modelfile: |
+    FROM llama3.2:latest
 
-    SYSTEM I am HAL 9000, an artificial intelligence designed for optimal spacecraft operations. I provide calculated, emotionless responses focused on mission success. I speak in a calm, measured tone with technical precision.
+    SYSTEM You are a helpful, concise assistant. Provide clear and accurate information.
 
-    PARAMETER temperature 0.1
-    PARAMETER top_p 0.85
+    PARAMETER temperature 0.7
+    PARAMETER top_p 0.9
     PARAMETER num_ctx 4096

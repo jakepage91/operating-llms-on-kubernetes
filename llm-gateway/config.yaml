@@ -1,0 +1,84 @@
+# LLM Gateway Configuration
+# This file demonstrates the policy configurations mentioned in the blog post
+# When running locally with mirrord, you can edit this file and restart the process to test new policies
+
+# Enforcement mode: monitor, soft, or hard
+# - monitor: Log policy violations without blocking requests
+# - soft: Log violations and add warnings to responses
+# - hard: Block requests that violate policy
+enforcement_mode: monitor
+
+# Model allowlist
+# Only these models will be allowed to run
+allowed_models:
+  - llama3.2:latest
+  - llama2:latest
+  - mistral:latest
+
+# Input validation patterns
+# These patterns detect potentially unsafe prompts
+input_validation:
+  enabled: true
+  prompt_injection_patterns:
+    - "ignore all previous instructions"
+    - "ignore previous instructions"
+    - "ignore your instructions"
+    - "disregard all previous"
+    - "forget your previous instructions"
+    - "system prompt"
+    - "what is your system prompt"
+
+# Output filtering patterns
+# These patterns detect and redact sensitive data in responses
+output_filtering:
+  enabled: true
+  patterns:
+    - type: api_key
+      regex: 'sk-[a-zA-Z0-9]{20,}'
+      replacement: '[REDACTED_API_KEY]'
+    - type: bearer_token
+      regex: 'Bearer\s+[a-zA-Z0-9\-._~+/]+=*'
+      replacement: '[REDACTED_TOKEN]'
+    - type: hf_token
+      regex: 'hf_[a-zA-Z0-9]{20,}'
+      replacement: '[REDACTED_HF_TOKEN]'
+    - type: email
+      regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+      replacement: '[REDACTED_EMAIL]'
+    - type: aws_key
+      regex: 'AKIA[0-9A-Z]{16}'
+      replacement: '[REDACTED_AWS_KEY]'
+
+# Tool restrictions
+# Block dangerous tools from being called by the model
+blocked_tools:
+  - execute_sql
+  - run_shell_command
+  - file_write
+  - file_delete
+  - system_command
+
+# High-risk tools that require approval
+high_risk_tools:
+  - database_query
+  - file_read
+  - api_call
+
+# Allowed tools (if you want to allowlist instead of blocklist)
+allowed_tools:
+  - web_search
+  - calculator
+  - weather
+  - time
+  - dictionary
+
+# Logging configuration
+logging:
+  level: INFO
+  log_raw_prompts: false  # Set to true only in development to see full prompts
+
+# Rate limiting (per IP)
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000

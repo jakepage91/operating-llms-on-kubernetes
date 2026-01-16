@@ -23,7 +23,7 @@ spec:
           name: http
         env:
         - name: OLLAMA_BASE_URL
-          value: "http://ollama:11434"
+          value: "http://llm-gateway.llm-gateway.svc.cluster.local"
         - name: WEBUI_AUTH
           value: "False"  # Disable auth for demo purposes
         resources:
