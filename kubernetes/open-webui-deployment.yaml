@@ -28,10 +28,10 @@ spec:
           value: "False"  # Disable auth for demo purposes
         resources:
           requests:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "200m"
           limits:
-            memory: "1Gi"
+            memory: "3Gi"
             cpu: "1000m"
         volumeMounts:
         - name: webui-data

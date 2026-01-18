@@ -53,21 +53,54 @@ for handler in logging.root.handlers:
 
 logger = logging.getLogger(__name__)
 
-# Prometheus metrics
-request_counter = Counter(
-    "llm_gateway_requests_total",
-    "Total number of requests",
-    ["method", "endpoint", "status"]
-)
-policy_decision_counter = Counter(
-    "llm_gateway_policy_decisions_total",
-    "Policy decisions",
-    ["policy_type", "decision", "enforcement_mode"]
-)
-forward_latency = Histogram(
-    "llm_gateway_forward_latency_seconds",
-    "Latency of forwarding to Ollama"
-)
+# Prometheus metrics - avoid duplicates on module reload
+from prometheus_client import REGISTRY
+
+def _get_metric_or_none(collector, name):
+    """Get existing metric or create new one."""
+    try:
+        return collector
+    except:
+        return None
+
+# Try to create metrics, ignore if already exist (hot reload scenario)
+try:
+    request_counter = Counter(
+        "llm_gateway_requests_total",
+        "Total number of requests",
+        ["method", "endpoint", "status"]
+    )
+except ValueError:
+    # Metric already exists (hot reload), create dummy that does nothing
+    class _DummyCounter:
+        def labels(self, **kwargs): return self
+        def inc(self, *args): pass
+    request_counter = _DummyCounter()
+
+try:
+    policy_decision_counter = Counter(
+        "llm_gateway_policy_decisions_total",
+        "Policy decisions",
+        ["policy_type", "decision", "enforcement_mode"]
+    )
+except ValueError:
+    class _DummyCounter:
+        def labels(self, **kwargs): return self
+        def inc(self, *args): pass
+    policy_decision_counter = _DummyCounter()
+
+try:
+    forward_latency = Histogram(
+        "llm_gateway_forward_latency_seconds",
+        "Latency of forwarding to Ollama"
+    )
+except ValueError:
+    from contextlib import contextmanager
+    class _DummyHistogram:
+        @contextmanager
+        def time(self):
+            yield
+    forward_latency = _DummyHistogram()
 
 # Security
 security = HTTPBearer(auto_error=False)
@@ -85,6 +118,7 @@ async def lifespan(app: FastAPI):
             "ollama_base_url": settings.ollama_base_url,
             "enforcement_mode": settings.enforcement_mode,
             "require_api_key": settings.require_api_key,
+            "allowed_models": settings.allowed_models_list,
         }
     )
     yield
@@ -240,6 +274,7 @@ async def chat_completions(
             tools=request_body.tools,
             enforcement_mode=settings.enforcement_mode,
             allowed_tools=settings.allowed_tools_list,
+            blocked_tools=settings.blocked_tools_list,
             high_risk_tools=settings.high_risk_tools_list,
             request_id=request_id,
         )
@@ -417,6 +452,158 @@ async def chat_completions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
+# Ollama API passthrough endpoints for Open WebUI compatibility
+@app.get("/api/tags")
+async def ollama_list_models():
+    """Passthrough to Ollama's model list endpoint."""
+    import httpx
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{settings.ollama_base_url}/api/tags")
+        return JSONResponse(content=response.json())
+
+
+@app.post("/api/generate")
+async def ollama_generate(request: Request):
+    """Passthrough to Ollama's generate endpoint with policy checks."""
+    import httpx
+    body = await request.json()
+
+    # Apply model allowlist
+    if not validate_model_allowlist(body.get("model", ""), settings.allowed_models_list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Model not allowed"
+        )
+
+    # Forward to Ollama
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{settings.ollama_base_url}/api/generate",
+            json=body,
+            timeout=60.0
+        )
+        return JSONResponse(content=response.json())
+
+
+@app.post("/api/chat")
+async def ollama_chat(request: Request):
+    """Passthrough to Ollama's chat endpoint with policy checks."""
+    import httpx
+    request_id = get_or_generate_request_id(request)
+
+    try:
+        body = await request.json()
+
+        logger.info(
+            "Received chat request",
+            extra={
+                "request_id": request_id,
+                "model": body.get("model"),
+                "messages": body.get("messages", []),
+            }
+        )
+
+        # Apply model allowlist
+        if not validate_model_allowlist(body.get("model", ""), settings.allowed_models_list):
+            logger.warning(
+                "Model not in allowlist",
+                extra={
+                    "request_id": request_id,
+                    "requested_model": body.get("model"),
+                    "allowed_models": settings.allowed_models_list,
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Model '{body.get('model')}' not allowed. Allowed: {settings.allowed_models_list}"
+            )
+
+        # Apply input policy
+        messages = body.get("messages", [])
+        policy_decision = evaluate_input_policy(
+            messages=messages,
+            tools=None,
+            enforcement_mode=settings.enforcement_mode,
+            allowed_tools=[],
+            blocked_tools=[],
+            high_risk_tools=[],
+            request_id=request_id,
+        )
+
+        if not policy_decision.allowed:
+            logger.warning(
+                "Request blocked by policy",
+                extra={
+                    "request_id": request_id,
+                    "reason": policy_decision.reason,
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=policy_decision.reason
+            )
+
+        # Forward to Ollama
+        async with httpx.AsyncClient() as client:
+            # Check if streaming is requested
+            if body.get("stream", True):  # Ollama streams by default
+                # For streaming, we need to pass through the response
+                response = await client.post(
+                    f"{settings.ollama_base_url}/api/chat",
+                    json=body,
+                    timeout=60.0
+                )
+                # Return the raw streaming response
+                from fastapi.responses import Response
+                return Response(
+                    content=response.content,
+                    media_type="application/x-ndjson",
+                    headers={"X-Request-ID": request_id}
+                )
+            else:
+                # Non-streaming response
+                response = await client.post(
+                    f"{settings.ollama_base_url}/api/chat",
+                    json=body,
+                    timeout=60.0
+                )
+                return JSONResponse(content=response.json())
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Error in chat endpoint",
+            extra={
+                "request_id": request_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error: {str(e)}"
+        )
+
+
+@app.get("/api/ps")
+async def ollama_ps():
+    """Passthrough to Ollama's running models endpoint."""
+    import httpx
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{settings.ollama_base_url}/api/ps")
+        return JSONResponse(content=response.json())
+
+
+@app.get("/api/version")
+async def ollama_version():
+    """Passthrough to Ollama's version endpoint."""
+    import httpx
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{settings.ollama_base_url}/api/version")
+        return JSONResponse(content=response.json())
 
 
 # Import Response for metrics endpoint

@@ -1,0 +1,14 @@
+{
+    "target": {
+      "path": "deployment/llm-gateway",
+      "namespace": "llm-gateway"
+    },
+    "feature": {
+      "network": {
+        "incoming": "steal"
+      },
+      "env": {
+        "exclude": "ENFORCEMENT_MODE;LOG_LEVEL;LOG_RAW_PROMPTS;ALLOWED_MODELS;BLOCKED_TOOLS;HIGH_RISK_TOOLS"
+      }
+    }
+  }

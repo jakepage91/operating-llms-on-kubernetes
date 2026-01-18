@@ -121,6 +121,7 @@ def evaluate_input_policy(
     tools: Optional[List[Dict[str, Any]]],
     enforcement_mode: Literal["monitor", "soft", "hard"],
     allowed_tools: List[str],
+    blocked_tools: List[str],
     high_risk_tools: List[str],
     request_id: str,
 ) -> PolicyDecision:
@@ -132,6 +133,7 @@ def evaluate_input_policy(
         tools: Requested tools
         enforcement_mode: Enforcement level
         allowed_tools: List of allowed tool names
+        blocked_tools: List of explicitly blocked tool names
         high_risk_tools: List of high-risk tool names
         request_id: Request identifier
 
@@ -178,7 +180,42 @@ def evaluate_input_policy(
     if tools:
         requested_tool_names = [tool.get("function", {}).get("name") for tool in tools]
 
-        # Check if tools are allowed
+        # Check for explicitly blocked tools first
+        requested_blocked_tools = [
+            name for name in requested_tool_names
+            if name in blocked_tools
+        ]
+
+        if requested_blocked_tools:
+            logger.warning(
+                "Blocked tools requested",
+                extra={
+                    "request_id": request_id,
+                    "blocked_tools": requested_blocked_tools,
+                    "enforcement_mode": enforcement_mode,
+                }
+            )
+
+            if enforcement_mode == "hard":
+                return PolicyDecision(
+                    allowed=False,
+                    reason=f"Tools are blocked: {', '.join(requested_blocked_tools)}",
+                )
+            elif enforcement_mode == "soft":
+                # Strip blocked tools
+                filtered_tools = [
+                    tool for tool in tools
+                    if tool.get("function", {}).get("name") not in blocked_tools
+                ]
+                return PolicyDecision(
+                    allowed=True,
+                    reason="Blocked tools stripped",
+                    modified_request={"tools": filtered_tools or None},
+                    metadata={"warning": "blocked_tools_stripped"},
+                )
+            # Monitor mode: log but allow
+
+        # Check if tools are allowed (if allowlist is configured)
         disallowed_tools = [
             name for name in requested_tool_names
             if allowed_tools and name not in allowed_tools

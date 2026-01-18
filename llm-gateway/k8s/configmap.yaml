@@ -10,13 +10,14 @@ data:
   MAX_RETRIES: "2"
 
   # Model configuration
-  ALLOWED_MODELS: "llama2,mistral,codellama"
-  DEFAULT_MODEL: "llama2"
+  ALLOWED_MODELS: "llama3.2:1b,llama3.2:latest,llama2,mistral,codellama,secret-model:latest"
+  DEFAULT_MODEL: "llama3.2:1b"
 
   # Policy enforcement
-  ENFORCEMENT_MODE: "monitor"  # monitor, soft, or hard
-  ALLOWED_TOOLS: "web_search,calculator,weather"
-  HIGH_RISK_TOOLS: "execute_code,file_delete,system_command"
+  ENFORCEMENT_MODE: "hard"  # monitor, soft, or hard
+  ALLOWED_TOOLS: ""  # Empty means all tools allowed (unless blocked)
+  BLOCKED_TOOLS: "execute_sql,run_shell_command,file_write,file_delete,system_command"
+  HIGH_RISK_TOOLS: "database_query,file_read,api_call"
 
   # Security
   REQUIRE_API_KEY: "false"
