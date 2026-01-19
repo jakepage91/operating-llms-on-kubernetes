@@ -16,11 +16,11 @@ The gateway acts as a reverse proxy with LLM-aware middleware:
 
 ## OWASP LLM Security Controls
 
-- **LLM01**: Prompt injection detection and blocking
-- **LLM02**: Sensitive information redaction (API keys, tokens, PII)
-- **LLM03**: Model allowlisting for supply chain security
-- **LLM06**: Tool/action gating
-- **LLM07**: System prompt leakage prevention
+- **LLM01: Prompt Injection** - Detection and blocking of injection attempts
+- **LLM02: Sensitive Information Disclosure** - Redaction of API keys, tokens, PII in outputs
+- **LLM03: Supply Chain** - Model allowlisting for supply chain security
+- **LLM06: Excessive Agency** - Tool/action gating and restrictions
+- **LLM07: System Prompt Leakage** - Prevention of system prompt extraction
 
 ## Enforcement Modes
 

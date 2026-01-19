@@ -314,10 +314,11 @@ See [llm-gateway/README.md](llm-gateway/README.md) for detailed configuration op
 
 The gateway implements these OWASP LLM Top 10 controls:
 
-- **LLM01: Prompt Injection** - Pattern-based detection and blocking
-- **LLM02: Sensitive Information Disclosure** - Regex-based redaction of API keys, tokens, PII
-- **LLM03: Supply Chain Vulnerabilities** - Model allowlisting
-- **LLM06: Excessive Agency** - Tool/function blocking
+- **LLM01: Prompt Injection** - Pattern-based detection and blocking of injection attempts
+- **LLM02: Sensitive Information Disclosure** - Regex-based redaction of API keys, tokens, PII in outputs
+- **LLM03: Supply Chain** - Model allowlisting to control which models can be used
+- **LLM06: Excessive Agency** - Tool/function call gating and blocking
+- **LLM07: System Prompt Leakage** - Protection against system prompt extraction attempts
 
 ## Enforcement Modes
 
