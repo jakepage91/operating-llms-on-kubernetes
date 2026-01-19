@@ -6,7 +6,7 @@ metadata:
   labels:
     app: llm-gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: llm-gateway
@@ -21,8 +21,8 @@ spec:
     spec:
       containers:
       - name: llm-gateway
-        image: llm-gateway:latest
-        imagePullPolicy: IfNotPresent
+        image: docker.cloudsmith.io/llm-ops/llm-gateway/llm-gateway:latest
+        imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 8000

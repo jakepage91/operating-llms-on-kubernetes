@@ -36,7 +36,7 @@ PROMPT_INJECTION_PATTERNS = [
 # LLM02: Sensitive Information Patterns
 SENSITIVE_PATTERNS = [
     (r"hf_[a-zA-Z0-9]{30,50}", "HUGGINGFACE_TOKEN"),
-    (r"sk-[a-zA-Z0-9]{40,60}", "OPENAI_KEY"),
+    (r"sk-[a-zA-Z0-9-]{20,60}", "OPENAI_KEY"),  # Allow hyphens in keys
     (r"AKIA[0-9A-Z]{16}", "AWS_ACCESS_KEY"),
     (r"ghp_[a-zA-Z0-9]{36,50}", "GITHUB_TOKEN"),
     (r"gho_[a-zA-Z0-9]{36,50}", "GITHUB_OAUTH"),

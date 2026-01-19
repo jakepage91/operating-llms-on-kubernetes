@@ -569,7 +569,29 @@ async def ollama_chat(request: Request):
                     json=body,
                     timeout=60.0
                 )
-                return JSONResponse(content=response.json())
+
+                # Apply output policy filtering
+                response_data = response.json()
+                if response_data.get("message") and response_data["message"].get("content"):
+                    original_content = response_data["message"]["content"]
+                    filtered_content, output_metadata = evaluate_output_policy(
+                        original_content,
+                        request_id
+                    )
+
+                    if output_metadata:
+                        logger.warning(
+                            "Output policy applied to Ollama chat",
+                            extra={
+                                "request_id": request_id,
+                                "metadata": output_metadata,
+                            }
+                        )
+
+                    # Update the response with filtered content
+                    response_data["message"]["content"] = filtered_content
+
+                return JSONResponse(content=response_data)
 
     except HTTPException:
         raise
