@@ -130,8 +130,8 @@ code .
 
 **4. Run the gateway with mirrord:**
 
+- Make sure the mirrord icon is enabled in your IDE
 - Open the **Run and Debug** panel (Cmd+Shift+D / Ctrl+Shift+D)
-- Select **"LLM Gateway with mirrord"** from the dropdown at the top
 - Click the green play button (or press **F5**)
 
 You should see the gateway start in the integrated terminal:
