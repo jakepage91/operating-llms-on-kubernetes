@@ -15,6 +15,15 @@ spec:
       labels:
         app: open-webui
     spec:
+      serviceAccountName: open-webui-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: open-webui
         image: ghcr.io/open-webui/open-webui:main
@@ -26,6 +35,11 @@ spec:
           value: "http://llm-gateway.llm-gateway.svc.cluster.local"
         - name: WEBUI_AUTH
           value: "False"  # Disable auth for demo purposes
+        - name: OAUTH_SESSION_TOKEN_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-secrets
+              key: OAUTH_SESSION_TOKEN_ENCRYPTION_KEY
         resources:
           requests:
             memory: "512Mi"
